@@ -44,14 +44,19 @@
             .outlierColor(function (d) { return d.color })
             .q1(function (d) { return d.q1 })
             .q2(function (d) { return d.median })
-            .q3(function (d) { return d.q3 })
+            .q3(function (d) { return d.q3 })		
             .wl(function (d) { return d.minRegularValue })
-            .wh(function (d) { return d.maxRegularValue });
+            .wh(function (d) { return d.maxRegularValue })
+			      
+            chart.xAxis.axisLabel('Time (ms)')
+			chart.yAxis.axisLabel('Voltage (v)');
 
         d3.select('#chart1 svg')
             .datum(exampleData())
             .call(chart);
-
+            
+   
+             
         nv.utils.windowResize(chart.update);
         return chart;
     });
@@ -60,26 +65,36 @@
         return  [
             {
                 title: 'Custom Attributes 1',
+                key: 'Custom Attributes 1',
+                color: '#247E42',
+                         
                 q1: 1.05, q3: 2.7, maxOutlier: 6, maxRegularValue: 4.4,
-                mean: 3.365, median: 1.3, minOutlier: 0.4, minRegularValue: 0.4,
+                median: 1.3, minOutlier: 0.4, minRegularValue: 0.4,
+                seriesColor: '#247E42',
+               
                 outlData: [
                     {data: 6, text: 'Source 1'},
-                    {data: 14.5, text: 'Source 2'},
-                    {data: 12, text: 'Reference Value', color: '#000'},
-                    {data: 4.5, text: 'Source 3'}
-                ],
-                seriesColor: '#247E42'
+                    ]
             },
             {
                 title: 'Custom Attributes 2',
+                key: 'Custom Attributes 2',
+                color: '#334693',                 
+              
+               
                 q1: 1.05, q3: 2.849999996, maxOutlier: 4.9, maxRegularValue: 4.9,
-                mean: 3.4949999, median: 1.5, minOutlier: 0.3, minRegularValue: 0.3,
-                outlData: [
-                    {data: 15.2, text: 'Source 1'},
-                    {data: 10, text: 'Reference Value', color: '#F00'},
-                    {data: 7.5, color: '#00F'}
-                ],
+                median: 1.5, minOutlier: 0.3, minRegularValue: 0.3,                 
                 seriesColor: '#334693'
+            },
+             {
+                title: 'Custom Attributes 3',
+                key: 'Custom Attributes 3',
+                color: '#661693',
+               
+              
+                q1: 1.05, q3: 2.849999996, maxOutlier: 4.9, maxRegularValue: 4.9,
+                median: 1.5, minOutlier: 0.3, minRegularValue: 0.3,                 
+                seriesColor: '#661693'
             }
         ];
     }

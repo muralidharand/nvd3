@@ -8,6 +8,8 @@ nv.models.boxPlotChart = function() {
     var boxplot = nv.models.boxPlot(),
         xAxis = nv.models.axis(),
         yAxis = nv.models.axis();
+    //create legend variable 
+    var legend = nv.models.legend();
 
     var margin = {top: 15, right: 10, bottom: 50, left: 60},
         width = null,
@@ -20,7 +22,11 @@ nv.models.boxPlotChart = function() {
         tooltip = nv.models.tooltip(),
         x, y,
         noData = 'No Data Available.',
-        dispatch = d3.dispatch('beforeUpdate', 'renderEnd'),
+        dispatch = d3.dispatch('stateChange','changeState','beforeUpdate', 'renderEnd'),  //Add the extra events
+        state = nv.utils.state(), //Get the  state
+        defaultState = null, //Set the defaultStats as null
+        showLegend=true, //Display the legends
+        legendPosition="bottom", //default legend position
         duration = 250;
 
     xAxis
@@ -40,6 +46,26 @@ nv.models.boxPlotChart = function() {
     //------------------------------------------------------------
 
     var renderWatch = nv.utils.renderWatch(dispatch, duration);
+    // Extra method for the legends to set the state as active
+    var stateGetter = function(data) {
+        return function(){
+            
+            return {
+                active: data.map(function(d) { return !d.disabled })
+            };
+        }
+    };
+    // Extra method for the legends to set the state as disabled
+    var stateSetter = function(data) {
+        return function(state) {
+            
+            if (state.active !== undefined) {
+                data.forEach(function (series, i) {
+                    series.disabled = !state.active[i];
+                });
+            }
+        }
+    };
 
     function chart(selection) {
         renderWatch.reset();
@@ -58,6 +84,25 @@ nv.models.boxPlotChart = function() {
                 container.transition().duration(duration).call(chart);
             };
             chart.container = this;
+            //Legends method for the setters and chart update
+            state.setter(stateSetter(data), chart.update)
+                .getter(stateGetter(data))
+                .update();
+
+            //set state.disabled
+            state.disabled = data.map(function(d) { return !!d.disabled });
+            //If default status is null, and fetch current state and update it
+            if (!defaultState) {
+                var key;
+                defaultState = {};
+                for (key in state) {
+                    if (state[key] instanceof Array)
+                        defaultState[key] = state[key].slice(0);
+                    else
+                        defaultState[key] = state[key];
+                }
+            }
+            
 
             // TODO still need to find a way to validate quartile data presence using boxPlot callbacks.
             // Display No Data message if there's nothing to show. (quartiles required at minimum).
@@ -95,13 +140,59 @@ nv.models.boxPlotChart = function() {
                 .append('line');
 
             gEnter.append('g').attr('class', 'nv-barsWrap');
+            gEnter.append('g').attr('class', 'nv-legendWrap'); //For the legend 
             g.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
 
             if (rightAlignYAxis) {
                 g.select('.nv-y.nv-axis')
                     .attr('transform', 'translate(' + availableWidth + ',0)');
             }
+            
+            
+            if (!showLegend) {
+                g.select('.nv-legendWrap').selectAll('*').remove();
+            } else {
+                if (legendPosition === "top") {
+                    legend.width( availableWidth );
 
+                    wrap.select('.nv-legendWrap')
+                        .datum(data)
+                        .call(legend);
+
+                    if (!marginTop && legend.height() !== margin.top) {
+                        margin.top = legend.height();
+                        availableHeight = nv.utils.availableHeight(height, container, margin);
+                    }
+
+                    wrap.select('.nv-legendWrap')
+                        .attr('transform', 'translate(0,' + (-margin.top) +')');
+                } else if (legendPosition === "right") {
+                    var legendWidth = nv.models.legend().width();
+                    if (availableWidth / 2 < legendWidth) {
+                        legendWidth = (availableWidth / 2)
+                    }
+                    legend.height(availableHeight);
+                    legend.width(legendWidth);
+                    availableWidth -= legend.width();
+
+                    wrap.select('.nv-legendWrap')
+                        .datum(data)
+                        .call(legend)
+                        .attr('transform', 'translate(' + (availableWidth) +',0)');
+                } else if (legendPosition === "bottom") {
+                    //Need to fix
+                    legend.width( availableWidth );
+                    wrap.select('.nv-legendWrap')
+                        .datum(data)
+                        .call(legend);
+
+                    margin.bottom = legend.height()+100;
+                    availableHeight = nv.utils.availableHeight(height, container, margin);
+                    
+                    wrap.select('.nv-legendWrap')
+                        .attr('transform', 'translate(0,' + 700 +')');
+                }
+            }
             // Main Chart Component(s)
             boxplot.width(availableWidth).height(availableHeight);
 
@@ -157,6 +248,26 @@ nv.models.boxPlotChart = function() {
             //============================================================
             // Event Handling/Dispatching (in chart's scope)
             //------------------------------------------------------------
+            //Event handlings for legend 
+            legend.dispatch.on('stateChange', function(newState) {
+                
+                for (var key in newState) {
+                    state[key] = newState[key];
+                }
+                dispatch.stateChange(state);
+                chart.update();
+            });
+
+            // Update chart from a state object passed to event handler
+            dispatch.on('changeState', function(e) {
+                if (typeof e.disabled !== 'undefined') {
+                    data.forEach(function(series,i) {
+                        series.disabled = e.disabled[i];
+                    });
+                    state.disabled = e.disabled;
+                }
+                chart.update();
+            });
         });
 
         renderWatch.renderEnd('nv-boxplot chart immediate');
@@ -182,7 +293,7 @@ nv.models.boxPlotChart = function() {
     //============================================================
     // Expose Public Variables
     //------------------------------------------------------------
-
+    chart.legend= legend; //Expose legend
     chart.dispatch = dispatch;
     chart.boxplot = boxplot;
     chart.xAxis = xAxis;
@@ -200,6 +311,11 @@ nv.models.boxPlotChart = function() {
         showYAxis: {get: function(){return showYAxis;}, set: function(_){showYAxis=_;}},
         tooltipContent:    {get: function(){return tooltip;}, set: function(_){tooltip=_;}},
         noData:    {get: function(){return noData;}, set: function(_){noData=_;}},
+        //Addtional methods for legend
+        showLegend:         {get: function(){return showLegend;},           set: function(_){showLegend=_;}},
+        legendPosition:     {get: function(){return legendPosition;},       set: function(_){legendPosition=_;}},
+        defaultState:       {get: function(){return defaultState;},         set: function(_){defaultState=_;}},
+
 
         // options that require extra logic in the setter
         margin: {get: function(){return margin;}, set: function(_){
@@ -217,6 +333,7 @@ nv.models.boxPlotChart = function() {
         }},
         color:  {get: function(){return color;}, set: function(_){
             color = nv.utils.getColor(_);
+            legend.color(color); //Sync legend color and element's color
             boxplot.color(color);
         }},
         rightAlignYAxis: {get: function(){return rightAlignYAxis;}, set: function(_){
